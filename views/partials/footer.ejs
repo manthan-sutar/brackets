@@ -1,35 +1,4 @@
 </body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" referrerpolicy="no-referrer"></script>
-<script>
-//Selectors
-
-const player8btn = $("#btn-8-p")
-const player16btn = $("#btn-16-p")
-const gameTypeElement = $("#game-type")
-
-
-var typeOfGame;
-
-$(player8btn).click(function (e) { 
-    e.preventDefault();
-    setTypeOfBracket("8 Player")
-});
-
-$(player16btn).click(function (e) { 
-    e.preventDefault();
-    setTypeOfBracket("16 Player")
-});
-
-$(player16btn).click(function (e) { 
-    e.preventDefault();
-    setTypeOfBracket("16 Player")
-});
-
-
-function setTypeOfBracket(type){
-    typeOfGame = type
-    gameTypeElement.html(type);
-}
-
-</script>
+<script src="../assets/app.js"></script>
 </html>

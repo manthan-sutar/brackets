@@ -1,7 +1,7 @@
 const { Model } = require("sequelize");
 const Sequelize = require("sequelize");
 const db = require("../config/database");
-const Message = require("./Message");
+const Tournament = require("./Tournament");
 
 class Match extends Model {}
 
@@ -10,12 +10,14 @@ Match.init(
 		id: {
 			type: Sequelize.INTEGER,
 			primaryKey: true,
+			autoIncrement: true
 		},
         tournament_id: Sequelize.INTEGER,
-        competitor_one: Sequelize.INTEGER,
-        competitor_otwo: Sequelize.INTEGER,
-        winner_id: Sequelize.INTEGER,
+		last_match_id: Sequelize.INTEGER,
+		side: Sequelize.STRING,
+		winner_id: Sequelize.INTEGER,
         round: Sequelize.INTEGER,
+		sort: Sequelize.INTEGER
 	},
 	{
 		sequelize: db,
@@ -23,5 +25,7 @@ Match.init(
         underscored: true
 	}
 );
+
+Tournament.hasMany(Match, {foreignKey: 'tournament_id'})
 
 module.exports = Match;

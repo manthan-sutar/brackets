@@ -9,6 +9,7 @@ Tournament.init(
 		id: {
 			type: Sequelize.INTEGER,
 			primaryKey: true,
+			autoIncrement: true
 		},
         name: Sequelize.STRING,
         number_of_competators: Sequelize.INTEGER,
@@ -20,5 +21,8 @@ Tournament.init(
         underscored: true
 	}
 );
+
+
+
 
 module.exports = Tournament;
