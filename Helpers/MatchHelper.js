@@ -78,7 +78,7 @@ class MatchHelper {
         return match.winner_id
     }
 
-    async isNextRoundCreated({
+    async nextRound({
         round, sort, tournament_id
     }){
         const match = await Match.findOne({
@@ -88,7 +88,26 @@ class MatchHelper {
                 tournament_id: tournament_id
             }
         })
-        return match == null ? false : true
+        return match == null ? {created: false,data: match} : {created: true,data: match}
+    }
+
+    async isCompetitorExist({
+        match_id,
+        competitor_id
+    }){
+        const matchCompetitor = await MatchCompetitor.findOne({
+            where: {
+                match_id: match_id,
+                competitor_id: competitor_id
+            }
+        })
+
+        return matchCompetitor == null ? false : true
+    }
+
+
+    async addCompetitor(){
+        
     }
 }
 

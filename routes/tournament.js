@@ -81,7 +81,7 @@ router.post('/submit-score', async (req, res) => {
     const isScoredSubmittedByCompetitors = await matchHelper.isScoredSubmittedByCompetitors({
         match_id: matchId
     })
-    
+
     var match = await Match.findOne({
         where: {
             id: matchId
@@ -120,14 +120,27 @@ router.post('/submit-score', async (req, res) => {
             totalMatches: previousRoundData.totalMatches
         })
 
-        const isNextRoundCreated = await matchHelper.isNextRoundCreated({
+        const nextRound = await matchHelper.nextRound({
             round: nextRoundNumber,
             sort: positionForNextRound,
             tournament_id: tournamentId
         })
 
-        if (isNextRoundCreated == true) {
-            //Create Match and add competitor
+        if (nextRound.created == true) {
+            const isCompetitorExists = await matchHelper.isCompetitorExist({
+                match_id: nextRound.data.id,
+                competitor_id: winnerId
+            })
+
+            if (isCompetitorExists == false) {
+                
+                const newCompetitor = await MatchCompetitor.create({
+                    match_id: nextRound.id,
+                    competitor_id: winnerId,
+                })
+                console.log(newCompetitor);
+            }
+        } else {
             const newMatch = await Match.create({
                 round: nextRoundNumber,
                 sort: positionForNextRound,
@@ -140,21 +153,6 @@ router.post('/submit-score', async (req, res) => {
                 competitor_id: winnerId,
             })
 
-        } else {
-            const matchCompetitor = await MatchCompetitor.findOne({
-                where: {
-                    match_id: nextRound.id,
-                    competitor_id: winnerId
-                }
-            })
-
-            if (matchCompetitor == null) {
-                const newCompetitor = await MatchCompetitor.create({
-                    match_id: nextRound.id,
-                    competitor_id: winnerId,
-                })
-                console.log(newCompetitor);
-            }
 
         }
     }
