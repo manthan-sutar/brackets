@@ -46,6 +46,11 @@ class BracketHelper {
         });
         return positionForNextRound + 1
     }
+
+    isCurrentRoundIsFinal({roundNumber, totalPlayers}){
+        const rounds = this.getRoundData({competitingPlayers: totalPlayers, round: "*"})
+        return rounds[rounds.length - 1].round === roundNumber ? true : false
+    }
     
 }
 

@@ -77,6 +77,7 @@ router.post('/submit-score', async (req, res) => {
         score: body.score,
         match_competitor_id: body.match_competitor_id
     })
+
     //Check if Both Oponenets have submitted score
     const isScoredSubmittedByCompetitors = await matchHelper.isScoredSubmittedByCompetitors({
         match_id: matchId
@@ -87,6 +88,7 @@ router.post('/submit-score', async (req, res) => {
             id: matchId
         }
     })
+
     const tournamentId = match.tournament_id
     
     if (isScoredSubmittedByCompetitors === true) {
@@ -94,51 +96,79 @@ router.post('/submit-score', async (req, res) => {
             match_id: matchId
         })
         const totalPlayers = await tournamentHelper.getNumberOfPlayers({
-            tournament_id: match.tournament_id
+            tournament_id: tournamentId
         })
         const prevoiusSort = match.sort
         const winnerId = await matchHelper.getWinnerId({
             match_id: matchId
         })
         const nextRoundNumber = (Number(match.round) + 1)
+        
         const previousRoundNumber = (Number(match.round))
-        const previousRoundData = bracketHelper.getRoundData({
+
+        const currentRound = bracketHelper.getRoundData({
             competitingPlayers: totalPlayers,
             round: previousRoundNumber
         })
         //get position for next match bey grouping 2 succeinding matches.
         const positionForNextRound = bracketHelper.getNextRoundPosition({
             matchNumber: prevoiusSort,
-            totalMatches: previousRoundData.totalMatches
+            totalMatches: currentRound.totalMatches
         })
+
         const nextRound = await matchHelper.nextRound({
             round: nextRoundNumber,
             sort: positionForNextRound,
             tournament_id: tournamentId
         })
-        if (nextRound.created == true) {
-            const isCompetitorExists = await matchHelper.isCompetitorExist({
-                match_id: nextRound.data.id,
-                competitor_id: winnerId
+        
+
+        //Check If Round is final 
+        const isFinalRound = bracketHelper.isCurrentRoundIsFinal({
+            roundNumber: previousRoundNumber,
+            totalPlayers: totalPlayers
+        })
+
+
+        if(isFinalRound == true){
+          try {
+            await Tournament.update({
+                is_active: false
+            }, {
+                where: {
+                    id: tournamentId
+                }
             })
-            if (isCompetitorExists == false) {
-                await matchHelper.addCompetitor({
+            console.log("Winner is is Declared!! Tournament is Ended.");
+          } catch (error) {
+              console.log(error);
+          }
+           
+        }else{
+            if (nextRound.created == true) {
+                const isCompetitorExists = await matchHelper.isCompetitorExist({
                     match_id: nextRound.data.id,
                     competitor_id: winnerId
                 })
+                if (isCompetitorExists == false) {
+                    await matchHelper.addCompetitor({
+                        match_id: nextRound.data.id,
+                        competitor_id: winnerId
+                    })
+                }
+            } else {
+                const newMatchPayload = {
+                    round: nextRoundNumber,
+                    sort: positionForNextRound,
+                    tournament_id: tournamentId,
+                    side: match.side
+                }
+                const newMatch = await Match.create(newMatchPayload)
+                await matchHelper.addCompetitor({
+                    match_id: newMatch.id,
+                    competitor_id: winnerId
+                })
             }
-        } else {
-            const newMatchPayload = {
-                round: nextRoundNumber,
-                sort: positionForNextRound,
-                tournament_id: tournamentId,
-                side: match.side
-            }
-            const newMatch = await Match.create(newMatchPayload)
-            await matchHelper.addCompetitor({
-                match_id: newMatch.id,
-                competitor_id: winnerId
-            })
         }
     }
     res.json("success")

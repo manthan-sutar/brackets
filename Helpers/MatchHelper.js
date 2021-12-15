@@ -1,5 +1,7 @@
 const Match = require("../models/Match");
 const MatchCompetitor = require("../models/MatchCompetitor");
+const BracketHelper = require('./BracketHelper')
+const bracketHelper = new BracketHelper()
 
 class MatchHelper {
     async submitScore({
@@ -81,6 +83,7 @@ class MatchHelper {
     async nextRound({
         round, sort, tournament_id
     }){
+       try {
         const match = await Match.findOne({
             where: {
                 round: round,
@@ -89,6 +92,9 @@ class MatchHelper {
             }
         })
         return match == null ? {created: false,data: match} : {created: true,data: match}
+       } catch (error) {
+           return error
+       }
     }
 
     async isCompetitorExist({
@@ -101,7 +107,6 @@ class MatchHelper {
                 competitor_id: competitor_id
             }
         })
-
         return matchCompetitor == null ? false : true
     }
 
@@ -110,17 +115,12 @@ class MatchHelper {
         match_id, competitor_id
     }){
         const newCompetitor = await MatchCompetitor.create({
-            match_id: newMatch.id,
-            competitor_id: winnerId,
+            match_id: match_id,
+            competitor_id: competitor_id,
         })
 
         console.log("Added competitor in the next round!");
     }
-
-    async createMatch({}){
-
-    }
 }
-
 
 module.exports = MatchHelper
