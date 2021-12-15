@@ -18,7 +18,6 @@ const matchHelper = new MatchHelper
 router.post('/', async (req, res) => {
     //Create New Tournament And get the id of the tournament
     //FOr time being tournamnent name have been kept static
-
     const numberOfPlayers = req.body.numberOfPlayers // INT 8/16
     const competitors = req.body.competitors
     try {
@@ -175,6 +174,7 @@ router.post('/submit-score', async (req, res) => {
 })
 
 
+//This will generate matches for the first round.
 router.post('/generate-matches/:id', async (req, res) => {
     const tournamentId = req.params.id
     //get the tournament

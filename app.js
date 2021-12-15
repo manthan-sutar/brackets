@@ -17,28 +17,50 @@ app.use(
     })
   );
 
-app.set('view engine', 'ejs');
+// app.set('view engine', 'ejs');
 
-app.use(express.static("views"));
+// app.use(express.static("views"));
 
 const tournamentRoutes = require('./routes/tournament')
-const matchesRoutes = require('./routes/matches')
-const nameRoutes = require('./routes/names')
-const webRoutes = require('./routes/web')
 
 const api = "/api"
 
-const public = "/public"
-
-///Api Routes
 app.use(api+'/tournament',tournamentRoutes)
-app.use(api+'/name',nameRoutes)
-app.use(api+'/matches',matchesRoutes)
-
-///Public View Routes
-app.use('',webRoutes)
 
 server.listen(PORT, () => {
     console.log("Server Running on port "+PORT)
 })
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// const matchesRoutes = require('./routes/matches')
+// const nameRoutes = require('./routes/names')
+// const webRoutes = require('./routes/web')
+
+// const api = "/api"
+
+// const public = "/public"
+
+///Api Routes
+
+// app.use(api+'/name',nameRoutes)
+// app.use(api+'/matches',matchesRoutes)
+
+///Public View Routes
+// app.use('',webRoutes)
