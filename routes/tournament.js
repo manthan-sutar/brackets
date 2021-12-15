@@ -48,7 +48,6 @@ router.post('/', async (req, res) => {
     }
 })
 
-
 router.get('/:id', async (req, res) => {
     const tournament = await tournamentHelper.getTournamentDataAndStatus({
         id: req.params.id
