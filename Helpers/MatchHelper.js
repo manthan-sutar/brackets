@@ -106,8 +106,19 @@ class MatchHelper {
     }
 
 
-    async addCompetitor(){
-        
+    async addCompetitor({
+        match_id, competitor_id
+    }){
+        const newCompetitor = await MatchCompetitor.create({
+            match_id: newMatch.id,
+            competitor_id: winnerId,
+        })
+
+        console.log("Added competitor in the next round!");
+    }
+
+    async createMatch({}){
+
     }
 }
 
