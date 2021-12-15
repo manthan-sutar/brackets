@@ -50,7 +50,6 @@ router.get('/tournaments/:id', async (req, res) => {
         ]
     })
 
-
     var leftMatches = []
     var rightMatches = []
 
