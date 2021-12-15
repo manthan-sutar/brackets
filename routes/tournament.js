@@ -6,6 +6,8 @@ const Tournament = require("../models/Tournament");
 const shuffle = require('shuffle-array');
 const Match = require("../models/Match");
 const MatchCompetitor = require("../models/MatchCompetitor");
+const BracketHelper = require("../Helpers/BracketHelper");
+const bracketHelper = new BracketHelper()
 
 // Public Routes End
 
@@ -45,7 +47,7 @@ router.post('/', async (req, res) => {
 })
 
 
-router.get('/:id', async ( req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const tournament = await Tournament.findOne({
             where: {
@@ -68,13 +70,80 @@ router.get('/:id', async ( req, res) => {
             ]
         })
 
-        res.json(tournament)
 
+
+        // var tournamentData = []
+
+
+        var tournamentRoundsAndMatches = bracketHelper.getRoundData({
+            competitingPlayers: tournament.number_of_competators,
+            round: "*"
+        })
+
+
+        tournamentRoundsAndMatches.forEach(element => {
+            element
+        });
+
+
+        // tournament.matches.forEach(match => {
+           
+
+        //     ///Checkc if the particular round data has already added in tournament data
+        //     if(tournamentData.length == 0){
+        //         tournamentData.push(tournamentRoundsAndMatches)
+        //     }else{
+                
+        //     }
+        //     // if(tournamentData.length == 0){
+        //     //     tournamentData.forEach((data) => {
+        //     //         data = tournamentRoundsAndMatches
+        //     //         data.matches = []
+        //     //         data.matches.push(match)
+        //     //     })
+        //     // }
+        // });
+
+        // console.log(tournamentData);
+
+        
+
+        //All round data by which i get tournamen status
+        // [
+        //     {
+        //         "round": 1,
+        //         "totalMatches": 8
+        //     },
+        //     {
+        //         "round": 2,
+        //         "totalMatches": 4
+        //     },
+        //     {
+        //         "round": 3,
+        //         "totalMatches": 2
+        //     },
+        //     {
+        //         "round": 4,
+        //         "totalMatches": 1
+        //     }
+        // ]
+        
+
+        
     } catch (error) {
         res.json(error)
     }
 })
 
+
+function ifObjectExist({
+    list,
+    key
+}){
+    
+}
+
+///This route will generate random players
 router.post("/generate-players", async (req, res) => {
     //total players (Int) - by which i gernerte random players for brackerts
     const numberOfPlayers = req.body.numberOfPlayers // INT 8/16
@@ -94,8 +163,16 @@ router.post("/generate-players", async (req, res) => {
 
 
 router.post('/submit-score', async (req, res) => {
+    var roundMatches = []
+    var round = 1
+    var competitingPlayers = 16
+
+
     const body = req.body
     const matchId = body.match_id
+
+
+
 
     try {
         //Submit Score 
@@ -118,51 +195,112 @@ router.post('/submit-score', async (req, res) => {
         var isScoreSubmittedByBothCompetitors = true
 
         matchCompetation.forEach(element => {
-            if(element.score === null){
+            if (element.score === null) {
                 isScoreSubmittedByBothCompetitors = false
             }
         });
 
         // Set Winner based on highest score
 
-        
+
         const match = await Match.findOne({
             where: {
                 id: matchId
             }
         })
 
-        if(isScoreSubmittedByBothCompetitors == true){
 
-            if(matchCompetation[0].score > matchCompetation[1].score){
+
+
+
+        if (isScoreSubmittedByBothCompetitors === true) {
+            if (matchCompetation[0].score > matchCompetation[1].score) {
                 await match.update({
                     winner_id: matchCompetation[0].competitor_id
                 })
-            }else{
+            } else {
                 await match.update({
                     winner_id: matchCompetation[1].competitor_id
                 })
             }
 
-            //Add winner to next round
-            
-            const nextRoundMatch = await Match.findOne({
+            //Check if next round is already created
+            const tournament = await Tournament.findOne({
                 where: {
-                    last_match_id: matchId
+                    id: match.tournament_id
                 }
             })
 
+            const totalPlayers = tournament.number_of_competators
+            const prevoiusSort = match.sort
+            const winnerId = match.winner_id
+            const nextRoundNumber = (Number(match.round) + 1)
+            const previousRoundNumber = (Number(match.round))
 
 
+            //Thiss will give data for next round. to get the match position.
+            const nextRoundData = bracketHelper.getRoundData({
+                competitingPlayers: totalPlayers,
+                round: nextRoundNumber
+            })
 
-            // const nextRoundMatch = await Match.create({
-            //     last_match_id: matchId,
-            //     side: match.side,
-            //     tournament_id: match.tournament_id,
-            //     round: (Number(match.round) + 1)
-            // })
+
+            const previousRoundData = bracketHelper.getRoundData({
+                competitingPlayers: totalPlayers,
+                round: previousRoundNumber
+            })
+
+            //get position for next match bey grouping 2 succeinding matches.
+
+            const positionForNextRound = bracketHelper.getNextRoundPosition({
+                matchNumber: prevoiusSort,
+                totalMatches: previousRoundData.totalMatches
+            })
+
+
+            //Check if Neext Round match is created 
+            const nextRound = await Match.findOne({
+                where: {
+                    round: nextRoundNumber,
+                    sort: positionForNextRound,
+                    tournament_id: tournament.id
+                }
+            })
+
+            if (nextRound == null) {
+                //Create Match and add competitor
+                const newMatch = await Match.create({
+                    round: nextRoundNumber,
+                    sort: positionForNextRound,
+                    tournament_id: tournament.id,
+                    side: match.side
+                })
+
+                const newCompetitor = await MatchCompetitor.create({
+                    match_id: newMatch.id,
+                    competitor_id: winnerId,
+                })
+
+            } else {
+
+                const matchCompetitor = await MatchCompetitor.findOne({
+                    where: {
+                        match_id: nextRound.id,
+                        competitor_id: winnerId
+                    }
+                })
+
+                if (matchCompetitor == null) {
+                    const newCompetitor = await MatchCompetitor.create({
+                        match_id: nextRound.id,
+                        competitor_id: winnerId,
+                    })
+                    console.log(newCompetitor);
+                }
+
+            }
         }
-        
+
         res.json(match)
     } catch (error) {
         res.json(error)
@@ -252,7 +390,7 @@ router.post('/generate-matches/:id', async (req, res) => {
                 //Change tournament status to active
                 await Tournament.update({
                     is_active: true
-                },{
+                }, {
                     where: {
                         id: tournamentId
                     }
