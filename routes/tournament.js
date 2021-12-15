@@ -8,7 +8,10 @@ const Match = require("../models/Match");
 const MatchCompetitor = require("../models/MatchCompetitor");
 const BracketHelper = require("../Helpers/BracketHelper");
 const bracketHelper = new BracketHelper()
-
+const TournamentHelper = require("../Helpers/TournamentHelper");
+const MatchHelper = require("../Helpers/MatchHelper");
+const tournamentHelper = new TournamentHelper()
+const matchHelper = new MatchHelper
 // Public Routes End
 
 //Store Tournament
@@ -48,262 +51,112 @@ router.post('/', async (req, res) => {
 
 
 router.get('/:id', async (req, res) => {
-    try {
-        const tournament = await Tournament.findOne({
-            where: {
-                id: req.params.id
-            },
-            include: [
-                {
-                    model: Match,
-                    include: [
-                        {
-                            model: MatchCompetitor,
-                            include: [
-                                {
-                                    model: Competitor
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        })
-
-
-
-        // var tournamentData = []
-
-
-        var tournamentRoundsAndMatches = bracketHelper.getRoundData({
-            competitingPlayers: tournament.number_of_competators,
-            round: "*"
-        })
-
-
-        tournamentRoundsAndMatches.forEach(element => {
-            element
-        });
-
-
-        // tournament.matches.forEach(match => {
-           
-
-        //     ///Checkc if the particular round data has already added in tournament data
-        //     if(tournamentData.length == 0){
-        //         tournamentData.push(tournamentRoundsAndMatches)
-        //     }else{
-                
-        //     }
-        //     // if(tournamentData.length == 0){
-        //     //     tournamentData.forEach((data) => {
-        //     //         data = tournamentRoundsAndMatches
-        //     //         data.matches = []
-        //     //         data.matches.push(match)
-        //     //     })
-        //     // }
-        // });
-
-        // console.log(tournamentData);
-
-        
-
-        //All round data by which i get tournamen status
-        // [
-        //     {
-        //         "round": 1,
-        //         "totalMatches": 8
-        //     },
-        //     {
-        //         "round": 2,
-        //         "totalMatches": 4
-        //     },
-        //     {
-        //         "round": 3,
-        //         "totalMatches": 2
-        //     },
-        //     {
-        //         "round": 4,
-        //         "totalMatches": 1
-        //     }
-        // ]
-        
-
-        
-    } catch (error) {
-        res.json(error)
-    }
+    const tournament = await tournamentHelper.getTournamentDataAndStatus({
+        id: req.params.id
+    })
+    res.json(tournament)
 })
 
-
-function ifObjectExist({
-    list,
-    key
-}){
-    
-}
 
 ///This route will generate random players
 router.post("/generate-players", async (req, res) => {
     //total players (Int) - by which i gernerte random players for brackerts
-    const numberOfPlayers = req.body.numberOfPlayers // INT 8/16
-    var players = [];
-    //creating users for the game;
-    const nameHelper = new NameHelper()
-    for (let index = 0; index < numberOfPlayers; index++) {
-        var player = {
-            name: nameHelper.generateRandomName()
-        }
-        //create player and save in database
-        // var generatedPlayer = await Competitor.create(player)
-        players.push(player);
-    }
+    const numberOfPlayers = req.body.numberOfPlayers
+    const players = tournamentHelper.generateRandomPlayers({
+        numberOfPlayers: numberOfPlayers
+    })
     res.json(players)
 })
 
 
 router.post('/submit-score', async (req, res) => {
-    var roundMatches = []
-    var round = 1
-    var competitingPlayers = 16
-
-
     const body = req.body
     const matchId = body.match_id
+    //Update Score
+    await matchHelper.submitScore({
+        score: body.score,
+        match_competitor_id: body.match_competitor_id
+    })
+    //Check if Both Oponenets have submitted score
+    const isScoredSubmittedByCompetitors = await matchHelper.isScoredSubmittedByCompetitors({
+        match_id: matchId
+    })
+    
+    var match = await Match.findOne({
+        where: {
+            id: matchId
+        }
+    })
 
+    const tournamentId = match.tournament_id
 
-
-
-    try {
-        //Submit Score 
-        await MatchCompetitor.update({
-            score: body.score
-        }, {
-            where: {
-                id: body.match_competitor_id
-            }
+    if (isScoredSubmittedByCompetitors === true) {
+        await matchHelper.setWinnerWithHighestScore({
+            match_id: matchId
         })
 
-        //Check if opoenent have submited. if submitted declare winner
-
-        const matchCompetation = await MatchCompetitor.findAll({
-            where: {
-                match_id: matchId
-            }
+        const totalPlayers = await tournamentHelper.getNumberOfPlayers({
+            tournament_id: match.tournament_id
         })
 
-        var isScoreSubmittedByBothCompetitors = true
+        const prevoiusSort = match.sort
 
-        matchCompetation.forEach(element => {
-            if (element.score === null) {
-                isScoreSubmittedByBothCompetitors = false
-            }
-        });
-
-        // Set Winner based on highest score
-
-
-        const match = await Match.findOne({
-            where: {
-                id: matchId
-            }
+        const winnerId = await matchHelper.getWinnerId({
+            match_id: matchId
         })
 
+        const nextRoundNumber = (Number(match.round) + 1)
 
+        const previousRoundNumber = (Number(match.round))
 
+        const previousRoundData = bracketHelper.getRoundData({
+            competitingPlayers: totalPlayers,
+            round: previousRoundNumber
+        })
 
+        //get position for next match bey grouping 2 succeinding matches.
+        const positionForNextRound = bracketHelper.getNextRoundPosition({
+            matchNumber: prevoiusSort,
+            totalMatches: previousRoundData.totalMatches
+        })
 
-        if (isScoreSubmittedByBothCompetitors === true) {
-            if (matchCompetation[0].score > matchCompetation[1].score) {
-                await match.update({
-                    winner_id: matchCompetation[0].competitor_id
-                })
-            } else {
-                await match.update({
-                    winner_id: matchCompetation[1].competitor_id
-                })
-            }
+        const isNextRoundCreated = await matchHelper.isNextRoundCreated({
+            round: nextRoundNumber,
+            sort: positionForNextRound,
+            tournament_id: tournamentId
+        })
 
-            //Check if next round is already created
-            const tournament = await Tournament.findOne({
+        if (isNextRoundCreated == true) {
+            //Create Match and add competitor
+            const newMatch = await Match.create({
+                round: nextRoundNumber,
+                sort: positionForNextRound,
+                tournament_id: tournamentId,
+                side: match.side
+            })
+
+            const newCompetitor = await MatchCompetitor.create({
+                match_id: newMatch.id,
+                competitor_id: winnerId,
+            })
+
+        } else {
+            const matchCompetitor = await MatchCompetitor.findOne({
                 where: {
-                    id: match.tournament_id
+                    match_id: nextRound.id,
+                    competitor_id: winnerId
                 }
             })
 
-            const totalPlayers = tournament.number_of_competators
-            const prevoiusSort = match.sort
-            const winnerId = match.winner_id
-            const nextRoundNumber = (Number(match.round) + 1)
-            const previousRoundNumber = (Number(match.round))
-
-
-            //Thiss will give data for next round. to get the match position.
-            const nextRoundData = bracketHelper.getRoundData({
-                competitingPlayers: totalPlayers,
-                round: nextRoundNumber
-            })
-
-
-            const previousRoundData = bracketHelper.getRoundData({
-                competitingPlayers: totalPlayers,
-                round: previousRoundNumber
-            })
-
-            //get position for next match bey grouping 2 succeinding matches.
-
-            const positionForNextRound = bracketHelper.getNextRoundPosition({
-                matchNumber: prevoiusSort,
-                totalMatches: previousRoundData.totalMatches
-            })
-
-
-            //Check if Neext Round match is created 
-            const nextRound = await Match.findOne({
-                where: {
-                    round: nextRoundNumber,
-                    sort: positionForNextRound,
-                    tournament_id: tournament.id
-                }
-            })
-
-            if (nextRound == null) {
-                //Create Match and add competitor
-                const newMatch = await Match.create({
-                    round: nextRoundNumber,
-                    sort: positionForNextRound,
-                    tournament_id: tournament.id,
-                    side: match.side
-                })
-
+            if (matchCompetitor == null) {
                 const newCompetitor = await MatchCompetitor.create({
-                    match_id: newMatch.id,
+                    match_id: nextRound.id,
                     competitor_id: winnerId,
                 })
-
-            } else {
-
-                const matchCompetitor = await MatchCompetitor.findOne({
-                    where: {
-                        match_id: nextRound.id,
-                        competitor_id: winnerId
-                    }
-                })
-
-                if (matchCompetitor == null) {
-                    const newCompetitor = await MatchCompetitor.create({
-                        match_id: nextRound.id,
-                        competitor_id: winnerId,
-                    })
-                    console.log(newCompetitor);
-                }
-
+                console.log(newCompetitor);
             }
-        }
 
-        res.json(match)
-    } catch (error) {
-        res.json(error)
+        }
     }
 })
 

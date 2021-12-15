@@ -3,7 +3,7 @@ const { Sequelize } = require('sequelize');
 module.exports = new Sequelize(
   'brackets',
   'manthan',
-  'admin1234',
+  '12345678',
   // 'root',
   // '12345678', 
   {
